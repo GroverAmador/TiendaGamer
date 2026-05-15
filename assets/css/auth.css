@@ -1,0 +1,300 @@
+/* ============================================================
+   NexusGear - Auth Pages (Login / Register / 2FA)
+   ============================================================ */
+
+.auth-page {
+    min-height: 100vh;
+    background: var(--bg-primary);
+    display: flex;
+    align-items: stretch;
+}
+
+/* Split layout */
+.auth-split-left {
+    background: linear-gradient(135deg, rgba(123,47,255,0.8), rgba(0,245,255,0.4)),
+                url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30"><circle cx="2" cy="2" r="1.5" fill="rgba(255,255,255,0.1)"/></svg>') repeat;
+    background-size: cover, 30px 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    position: relative;
+    overflow: hidden;
+}
+
+.auth-split-left::before {
+    content: '';
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.1);
+    top: -100px;
+    right: -100px;
+}
+
+.auth-split-left::after {
+    content: '';
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.08);
+    bottom: -80px;
+    left: -80px;
+}
+
+.auth-brand-logo {
+    font-family: 'Oxanium', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 1;
+}
+
+.auth-brand-tagline {
+    font-size: 1.1rem;
+    color: rgba(255,255,255,0.8);
+    text-align: center;
+    line-height: 1.7;
+    position: relative;
+    z-index: 1;
+    max-width: 320px;
+}
+
+.auth-deco {
+    position: relative;
+    z-index: 1;
+    margin-top: 40px;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: ring-pulse 4s ease-in-out infinite;
+    font-size: 5rem;
+}
+
+.auth-split-right {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    background: var(--bg-primary);
+}
+
+.auth-form-card {
+    width: 100%;
+    max-width: 440px;
+}
+
+.auth-title {
+    font-family: 'Oxanium', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.auth-subtitle {
+    color: var(--text-secondary);
+    margin-bottom: 32px;
+}
+
+/* Password strength */
+.strength-bar-container {
+    margin-top: 8px;
+}
+
+.strength-bar {
+    height: 4px;
+    background: var(--border-subtle);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+.strength-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease, background-color 0.3s ease;
+    width: 0%;
+}
+
+.strength-text {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* Show/hide password */
+.password-toggle {
+    position: relative;
+}
+
+.password-toggle .toggle-btn {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.password-toggle .toggle-btn:hover { color: var(--neon-cyan); }
+.password-toggle input { padding-right: 44px; }
+
+/* Checkbox */
+.form-check-label { color: var(--text-secondary); font-size: 0.9rem; }
+.form-check-input { border-color: var(--border-subtle); background: transparent; }
+
+/* ============================================================
+   2FA PAGE
+   ============================================================ */
+.twofa-page {
+    min-height: 100vh;
+    background: var(--bg-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    position: relative;
+}
+
+.twofa-page::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(0,245,255,0.05) 1px, transparent 1px);
+    background-size: 30px 30px;
+}
+
+.twofa-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: var(--radius-lg);
+    padding: 48px;
+    max-width: 480px;
+    width: 100%;
+    position: relative;
+    box-shadow: var(--shadow-neon);
+    text-align: center;
+}
+
+.twofa-icon {
+    font-size: 3.5rem;
+    margin-bottom: 20px;
+    display: block;
+}
+
+.twofa-title {
+    font-family: 'Oxanium', sans-serif;
+    font-size: 1.8rem;
+    color: var(--neon-cyan);
+    margin-bottom: 8px;
+}
+
+.twofa-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    margin-bottom: 24px;
+    line-height: 1.6;
+}
+
+.code-display-box {
+    background: rgba(0,245,255,0.08);
+    border: 1px solid rgba(0,245,255,0.25);
+    border-radius: var(--radius-md);
+    padding: 16px 24px;
+    margin-bottom: 28px;
+    text-align: left;
+}
+
+.code-display-box .email-icon { margin-right: 8px; }
+
+.code-display-box .code-value {
+    font-family: 'Oxanium', monospace;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--neon-cyan);
+    letter-spacing: 6px;
+    display: block;
+    margin-top: 6px;
+}
+
+/* 6-box OTP input */
+.otp-inputs {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.otp-box {
+    width: 52px;
+    height: 64px;
+    text-align: center;
+    font-family: 'Oxanium', monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+    background: rgba(255,255,255,0.04);
+    border: 2px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    transition: var(--transition);
+    outline: none;
+}
+
+.otp-box:focus {
+    border-color: var(--neon-cyan);
+    background: rgba(0,245,255,0.05);
+    box-shadow: 0 0 0 3px rgba(0,245,255,0.1);
+    color: var(--neon-cyan);
+}
+
+.otp-box.filled {
+    border-color: var(--neon-violet);
+    color: var(--neon-violet);
+}
+
+/* Countdown timer */
+.timer-display {
+    font-family: 'Oxanium', monospace;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.timer-display.urgent { color: var(--neon-pink); animation: blink 1s step-end infinite; }
+
+@keyframes blink {
+    50% { opacity: 0.5; }
+}
+
+.resend-link {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: color 0.2s;
+    background: none;
+    border: none;
+    padding: 0;
+    text-decoration: underline;
+}
+
+.resend-link:hover, .resend-link.highlight { color: var(--neon-cyan); }
