@@ -1,17 +1,30 @@
 // ============================================================
-// NexusGear — carrito.js v3
-// Event delegation correcta + validación de stock frontend
+// NexusGear — carrito.js v4
+// addToCart muestra notificación flotante con info del producto
 // ============================================================
 
 function updateCartBadge(count) {
-    document.querySelectorAll('#cart-badge, .cart-badge').forEach(b => {
+    document.querySelectorAll('#cart-badge,.cart-badge').forEach(b => {
         b.textContent = count > 0 ? count : '';
         if (count > 0) { b.classList.add('pop'); setTimeout(() => b.classList.remove('pop'), 350); }
     });
 }
 
-// ---- Agregar al carrito con validación de stock ----
-function addToCart(productId, quantity = 1) {
+// ---- addToCart con notificación visual ----
+function addToCart(productId, quantity = 1, productName = null, productImg = null) {
+    // Intentar obtener info del producto del DOM si no se pasó
+    if (!productName || !productImg) {
+        // Buscar en la card más cercana al botón que fue clickeado
+        const btn = document.querySelector(`.btn-add-to-cart[data-product-id="${productId}"]`);
+        if (btn) {
+            const card = btn.closest('.product-card, .col');
+            if (card) {
+                productName = productName || card.querySelector('h5,h6')?.textContent?.trim() || '';
+                productImg  = productImg  || card.querySelector('img')?.src || '';
+            }
+        }
+    }
+
     return fetch('/nexusgear/controllers/venta_controller.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -19,39 +32,31 @@ function addToCart(productId, quantity = 1) {
     })
     .then(r => r.json())
     .then(data => {
-        const type = data.success ? 'success' : (data.warning ? 'warning' : 'error');
-        showToast(data.message || (data.success ? 'Agregado al carrito' : 'Error'), type);
         if (data.success) {
             updateCartBadge(data.cart_count);
-            // Actualizar indicador de stock en la card si existe
+            // Mostrar notificación flotante con info del producto
+            showCartNotification(productName || 'Producto', productImg || '', quantity);
+            // Actualizar badge de stock en la card
             if (data.stock !== undefined) {
-                _updateStockBadgeOnCard(productId, data.stock, data.en_carrito);
+                _syncStockOnCard(productId, data.stock);
             }
+        } else {
+            const type = data.warning ? 'warning' : 'error';
+            showToast(data.message || 'No se pudo agregar.', type);
         }
         return data;
     })
-    .catch(() => { showToast('Error de conexión.', 'error'); });
+    .catch(() => showToast('Error de conexión.', 'error'));
 }
 
-// ---- Actualizar badge de stock en la card ----
-function _updateStockBadgeOnCard(pid, stock, enCarrito) {
-    const stockLeft = stock - (enCarrito || 0);
-    // Buscar el badge de precio/stock en la card
-    document.querySelectorAll(`[data-product-id="${pid}"]`).forEach(el => {
-        const card = el.closest('.product-card');
-        if (!card) return;
-        // Actualizar el badge de stock bajo si existe
-        const oldBadge = card.querySelector('.badge-orange.stock-low-badge');
-        if (oldBadge) {
-            if (stock <= 0) oldBadge.textContent = 'Agotado';
-            else if (stock <= 5) oldBadge.textContent = `Últimas ${stock} uds.`;
-        }
-        // Deshabilitar botón si agotado
-        const cartBtn = card.querySelector('.btn-add-to-cart');
-        if (cartBtn && stock <= 0) {
-            cartBtn.disabled = true;
-            cartBtn.innerHTML = '<i class="bi bi-x-circle me-1"></i>Agotado';
-            cartBtn.className = cartBtn.className.replace('btn-neon', 'btn-secondary');
+// ---- Sincronizar indicador de stock en la card ----
+function _syncStockOnCard(pid, stock) {
+    document.querySelectorAll(`.btn-add-to-cart[data-product-id="${pid}"]`).forEach(btn => {
+        if (stock <= 0) {
+            btn.disabled = true;
+            btn.textContent = '✗ Agotado';
+            btn.classList.remove('btn-neon');
+            btn.classList.add('btn-secondary');
         }
     });
 }
@@ -75,10 +80,11 @@ function removeFromCart(pid, row) {
             }
             showToast('Producto eliminado del carrito.', 'info');
         }
-    });
+    })
+    .catch(() => showToast('Error de conexión.', 'error'));
 }
 
-// ---- Actualizar cantidad con validación de stock ----
+// ---- Actualizar cantidad ----
 function updateQty(pid, qty, row) {
     fetch('/nexusgear/controllers/venta_controller.php', {
         method: 'POST',
@@ -88,30 +94,29 @@ function updateQty(pid, qty, row) {
     .then(r => r.json())
     .then(d => {
         if (d.removed) {
-            // El producto ya no está disponible, eliminar la fila
             showToast(d.message, 'warning');
-            row.style.transition = 'opacity .3s'; row.style.opacity = '0';
+            row.style.transition='opacity .3s'; row.style.opacity='0';
             setTimeout(() => { row.remove(); recalcTotals(); checkEmpty(); updateCartBadge(d.cart_count); }, 300);
             return;
         }
         if (d.success) {
             updateCartBadge(d.cart_count);
-            // Si la cantidad fue ajustada al stock disponible
             if (d.warning && d.adjusted_qty !== undefined) {
                 const input = row.querySelector('.qty-input');
                 if (input) input.value = d.adjusted_qty;
                 showToast(d.message, 'warning');
             }
-            const price = parseFloat(row.dataset.price || 0);
+            const price  = parseFloat(row.dataset.price || 0);
             const realQty = parseInt(row.querySelector('.qty-input')?.value || qty);
-            const sub   = row.querySelector('.subtotal-cell');
+            const sub    = row.querySelector('.subtotal-cell');
             if (sub) sub.textContent = '$' + (price * realQty).toFixed(2);
             recalcTotals();
         }
-    });
+    })
+    .catch(() => {});
 }
 
-// ---- Recalcular totales en DOM ----
+// ---- Recalcular totales ----
 function recalcTotals() {
     let sub = 0;
     document.querySelectorAll('.cart-item-row').forEach(row => {
@@ -133,7 +138,6 @@ function recalcTotals() {
     if (tEl) tEl.textContent = '$' + total.toFixed(2);
 }
 
-// ---- Verificar si el carrito quedó vacío ----
 function checkEmpty() {
     if (!document.querySelectorAll('.cart-item-row').length) {
         document.querySelector('.cart-table-wrapper')?.remove();
@@ -143,79 +147,60 @@ function checkEmpty() {
 }
 
 // ============================================================
-// EVENT DELEGATION — funciona para cards dinámicas (AJAX) y estáticas
+// EVENT DELEGATION — cubre cards estáticas y dinámicas (AJAX)
 // ============================================================
 document.addEventListener('DOMContentLoaded', function () {
 
-    // ---- "Agregar al carrito" (delegado, cubre cards dinámicas) ----
+    // "Agregar al carrito" — delegado
     document.addEventListener('click', function (e) {
         const addBtn = e.target.closest('.btn-add-to-cart');
-        if (addBtn && !addBtn.disabled) {
-            e.preventDefault();
-            e.stopPropagation();
-            const pid = addBtn.dataset.productId;
-            if (!pid) return;
-            // Buscar selector de cantidad en la misma card o página de detalle
-            const card = addBtn.closest('.product-card, .col');
-            const qtyInput = card?.querySelector('.qty-input') || document.getElementById('qty-selector');
-            const qty = qtyInput ? parseInt(qtyInput.value) || 1 : 1;
-            addToCart(pid, qty);
-        }
+        if (!addBtn || addBtn.disabled) return;
+        e.preventDefault(); e.stopPropagation();
+        const pid = addBtn.dataset.productId;
+        if (!pid) return;
+        // Obtener info del producto desde el DOM
+        const card = addBtn.closest('.product-card, .col');
+        const name = card?.querySelector('h5,h6')?.textContent?.trim() || '';
+        const img  = card?.querySelector('.card-img-wrap img, img.card-img-top, img')?.src || '';
+        // Selector de cantidad (página de detalle)
+        const qtyInput = document.getElementById('qty-selector');
+        const qty = qtyInput ? parseInt(qtyInput.value) || 1 : 1;
+        addToCart(pid, qty, name, img);
     });
 
-    // ---- Favorito (delegado, cubre cards dinámicas) ----
-    // Usa event delegation para que funcione en cards cargadas por AJAX
-    document.addEventListener('click', function (e) {
-        const favBtn = e.target.closest('.card-fav-btn');
-        // Excluir el botón de favorito del quick-view modal (tiene id propio)
-        if (favBtn && favBtn.id !== 'qv-fav-btn') {
-            e.preventDefault();
-            e.stopPropagation();
-            if (typeof _toggleFav === 'function') {
-                _toggleFav(favBtn);
-            }
-        }
-    });
-
-    // ---- Carrito: botones +/- ----
+    // Botones +/- del carrito
     document.addEventListener('click', function (e) {
         if (e.target.closest('.qty-btn-plus')) {
             const row   = e.target.closest('.cart-item-row');
             const input = row?.querySelector('.qty-input');
             if (!input) return;
-            const max = parseInt(input.max || 999);
-            const cur = parseInt(input.value);
-            if (cur < max) {
-                input.value = cur + 1;
-                updateQty(row.dataset.productId, cur + 1, row);
-            } else {
-                showToast(`Máximo disponible: ${max} unidades.`, 'warning');
-            }
+            const max = parseInt(input.max || 999), cur = parseInt(input.value);
+            if (cur < max) { input.value = cur+1; updateQty(row.dataset.productId, cur+1, row); }
+            else showToast(`Máximo disponible: ${max} unidades.`, 'warning');
         }
         if (e.target.closest('.qty-btn-minus')) {
             const row   = e.target.closest('.cart-item-row');
             const input = row?.querySelector('.qty-input');
             if (!input) return;
             const cur = parseInt(input.value);
-            if (cur > 1) { input.value = cur - 1; updateQty(row.dataset.productId, cur - 1, row); }
+            if (cur > 1) { input.value = cur-1; updateQty(row.dataset.productId, cur-1, row); }
         }
         if (e.target.closest('.btn-remove-cart')) {
             const row = e.target.closest('.cart-item-row');
             const pid = row?.dataset.productId;
             if (!pid) return;
-            showConfirmModal('Eliminar producto', '¿Quitar este producto del carrito?', 'Quitar')
+            showConfirmModal('Eliminar producto','¿Quitar este producto del carrito?','Quitar')
                 .then(ok => { if (ok) removeFromCart(pid, row); });
         }
     });
 
-    // ---- Cantidad directa ----
+    // Cantidad directa
     document.querySelectorAll('.qty-input').forEach(inp => {
         inp.addEventListener('change', function () {
             const row = this.closest('.cart-item-row');
             if (!row) return;
-            let v   = parseInt(this.value) || 1;
-            const mx = parseInt(this.max || 999);
-            v = Math.min(Math.max(v, 1), mx);
+            let v = parseInt(this.value)||1, mx = parseInt(this.max||999);
+            v = Math.min(Math.max(v,1),mx);
             this.value = v;
             updateQty(row.dataset.productId, v, row);
         });

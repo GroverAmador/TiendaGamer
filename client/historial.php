@@ -9,23 +9,32 @@ if (!isset($_SESSION['id_usuario'])) {
 require_once __DIR__ . '/../config/database.php';
 
 $uid = (int)$_SESSION['id_usuario'];
+// PASO 1: obtener TODAS las ventas primero y cerrar el statement
+// (evita "Commands out of sync" al hacer queries anidadas)
 $stmt = mysqli_prepare($conn, "SELECT * FROM Venta WHERE id_usuario=? ORDER BY fecha DESC");
 mysqli_stmt_bind_param($stmt,'i',$uid);
 mysqli_stmt_execute($stmt);
+$ventasResult = mysqli_stmt_get_result($stmt);
 $ventas = [];
-while ($v = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt))) {
+while ($v = mysqli_fetch_assoc($ventasResult)) $ventas[] = $v;
+mysqli_stmt_free_result($stmt);
+mysqli_stmt_close($stmt);   // cerrar ANTES de hacer queries internas
+
+// PASO 2: para cada venta, obtener sus items (ya sin conflicto)
+foreach ($ventas as &$v) {
     $dStmt = mysqli_prepare($conn,
         "SELECT dv.*, p.nombre, p.marca, p.imagen, p.id_producto FROM Detalle_Venta dv
-         JOIN Producto p ON dv.id_producto=p.id_producto WHERE dv.id_venta=?");
+         LEFT JOIN Producto p ON dv.id_producto=p.id_producto WHERE dv.id_venta=?");
     mysqli_stmt_bind_param($dStmt,'i',$v['id_venta']);
     mysqli_stmt_execute($dStmt);
-    $items = [];
-    while ($d = mysqli_fetch_assoc(mysqli_stmt_get_result($dStmt))) $items[] = $d;
+    $dResult = mysqli_stmt_get_result($dStmt);
+    $items   = [];
+    while ($d = mysqli_fetch_assoc($dResult)) $items[] = $d;
+    mysqli_stmt_free_result($dStmt);
     mysqli_stmt_close($dStmt);
     $v['items'] = $items;
-    $ventas[]   = $v;
 }
-mysqli_stmt_close($stmt);
+unset($v); // limpiar referencia del foreach
 
 // Get product IDs the user already reviewed
 $reviewedIds = [];

@@ -98,14 +98,11 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
                     <label class="form-label" for="contrasena">
                         <i class="bi bi-lock me-1"></i>Contraseña
                     </label>
-                    <div class="password-strength-wrapper">
-                        <div class="password-toggle">
-                            <input type="password" id="contrasena" name="contrasena"
-                                   class="form-control" placeholder="Tu contraseña" required>
-                            <button type="button" class="toggle-btn" data-target="contrasena">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                        </div>
+                    <div class="pw-wrap">
+                        <input type="password" id="contrasena" name="contrasena"
+                               class="form-control" placeholder="Tu contraseña" required>
+                        <button type="button" class="pw-toggle"
+                                onclick="togglePw('contrasena',this)">👁</button>
                     </div>
                     <div class="invalid-feedback" style="display:block;"></div>
                 </div>
@@ -147,16 +144,13 @@ unset($_SESSION['flash_message'], $_SESSION['flash_type']);
 <script src="/nexusgear/assets/js/main.js"></script>
 <script src="/nexusgear/assets/js/validaciones.js"></script>
 <script>
-// Show/hide password toggle
-document.querySelectorAll('.toggle-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const input = document.getElementById(this.dataset.target);
-        if (!input) return;
-        input.type = input.type === 'password' ? 'text' : 'password';
-        const icon = this.querySelector('.bi');
-        if (icon) icon.className = input.type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash';
-    });
-});
+// Toggle ojo con emoji
+function togglePw(inputId, btn) {
+    var inp = document.getElementById(inputId);
+    if (!inp) return;
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+    btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+}
 <?php if ($flash): ?>
 document.addEventListener('DOMContentLoaded',()=>showToast(<?= json_encode($flash) ?>,<?= json_encode($flashType) ?>));
 <?php endif; ?>

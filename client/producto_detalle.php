@@ -182,33 +182,63 @@ $reviewAvgText = $totalReviews > 0 ? number_format($avg, 1) : 'N/A';
             <!-- Actions -->
             <?php if ($inStock): ?>
             <div class="d-flex align-items-center gap-3 flex-wrap mb-3">
-                <div class="qty-input-group">
-                    <button class="qty-btn" id="qty-minus" type="button">
-                        <i class="bi bi-dash"></i>
-                    </button>
+                <div class="qty-group">
+                    <button class="qty-btn" id="qty-minus" type="button">−</button>
                     <input type="number" class="qty-input" id="qty-selector" value="1" min="1" max="<?= $product['stock'] ?>">
-                    <button class="qty-btn" id="qty-plus" type="button">
-                        <i class="bi bi-plus"></i>
-                    </button>
+                    <button class="qty-btn" id="qty-plus" type="button">+</button>
                 </div>
                 <button class="btn btn-neon flex-grow-1 btn-add-to-cart"
                         data-product-id="<?= $product['id_producto'] ?>">
-                    <i class="bi bi-cart3 me-2"></i>Agregar al Carrito
+                    🛒 Agregar al Carrito
                 </button>
-                <button class="btn-fav <?= $isFav ? 'active' : '' ?>"
-                        data-product-id="<?= $product['id_producto'] ?>">
-                    <i class="bi <?= $isFav ? 'bi-heart-fill' : 'bi-heart' ?>"></i>
+                <!-- Favorito con emoji -->
+                <button class="card-fav-btn <?= $isFav ? 'active' : '' ?>"
+                        data-product-id="<?= $product['id_producto'] ?>"
+                        style="position:static;width:42px;height:42px;"
+                        title="Favoritos">
+                    <span class="fav-emoji" style="font-size:1.1rem;"><?= $isFav ? '❤️' : '🤍' ?></span>
                 </button>
             </div>
             <?php else: ?>
-            <div class="d-flex gap-3">
-                <button class="btn btn-secondary" disabled>
-                    <i class="bi bi-x-circle me-2"></i>Sin stock disponible
-                </button>
-                <button class="btn-fav <?= $isFav ? 'active' : '' ?>"
-                        data-product-id="<?= $product['id_producto'] ?>">
-                    <i class="bi <?= $isFav ? 'bi-heart-fill' : 'bi-heart' ?>"></i>
-                </button>
+            <!-- Producto agotado: opción de notificación -->
+            <?php
+            // Verificar si el usuario ya tiene alerta activa
+            $alertaActiva = false;
+            $stAlerta = mysqli_prepare($conn,"SELECT id_alerta FROM Alerta_Stock WHERE id_usuario=? AND id_producto=? AND activa=1");
+            mysqli_stmt_bind_param($stAlerta,'ii',$uid,$id);
+            mysqli_stmt_execute($stAlerta); mysqli_stmt_store_result($stAlerta);
+            $alertaActiva = mysqli_stmt_num_rows($stAlerta) > 0;
+            mysqli_stmt_close($stAlerta);
+            ?>
+            <div class="d-flex flex-column gap-3 mb-3">
+                <div style="background:rgba(244,63,142,.08);border:1px solid rgba(244,63,142,.2);border-radius:var(--radius-md);padding:14px 16px;">
+                    <div style="font-weight:600;color:var(--neon-pink);font-size:.9rem;margin-bottom:6px;">
+                        ✗ Producto sin stock
+                    </div>
+                    <p style="color:var(--text-muted);font-size:.83rem;margin:0;line-height:1.5;">
+                        Este producto está agotado actualmente. Puedes recibir una notificación cuando vuelva a estar disponible.
+                    </p>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <?php if ($alertaActiva): ?>
+                    <button id="btn-alerta" class="btn btn-outline-cyan flex-grow-1"
+                            onclick="toggleAlerta(<?= $id ?>, true)" style="font-size:.88rem;">
+                        🔔 Alerta activa — Click para cancelar
+                    </button>
+                    <?php else: ?>
+                    <button id="btn-alerta" class="btn btn-neon flex-grow-1"
+                            onclick="toggleAlerta(<?= $id ?>, false)" style="font-size:.88rem;">
+                        🔔 Notificarme cuando esté disponible
+                    </button>
+                    <?php endif; ?>
+                    <!-- Favorito con emoji -->
+                    <button class="card-fav-btn <?= $isFav ? 'active' : '' ?>"
+                            data-product-id="<?= $product['id_producto'] ?>"
+                            style="position:static;width:42px;height:42px;"
+                            title="Favoritos">
+                        <span class="fav-emoji" style="font-size:1.1rem;"><?= $isFav ? '❤️' : '🤍' ?></span>
+                    </button>
+                </div>
             </div>
             <?php endif; ?>
 
@@ -535,6 +565,36 @@ if (window.location.hash === '#opiniones') {
 
 // Own review card highlight
 document.querySelector('.own-review')?.style && (document.querySelector('.own-review').style.borderColor = 'var(--border-glow)');
+
+// ---- Alerta de stock ----
+function toggleAlerta(pid, estaActiva) {
+    const btn    = document.getElementById('btn-alerta');
+    const action = estaActiva ? 'unsubscribe' : 'subscribe';
+    if (btn) { btn.disabled = true; btn.textContent = 'Procesando...'; }
+
+    fetch('/nexusgear/controllers/alerta_stock_controller.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=${action}&id_producto=${pid}&csrf_token=${window.csrfToken}`
+    })
+    .then(r => r.json())
+    .then(d => {
+        showToast(d.message, d.success ? 'success' : 'error');
+        if (d.success && btn) {
+            if (action === 'subscribe') {
+                btn.textContent = '🔔 Alerta activa — Click para cancelar';
+                btn.className   = 'btn btn-outline-cyan flex-grow-1';
+                btn.setAttribute('onclick', `toggleAlerta(${pid}, true)`);
+            } else {
+                btn.textContent = '🔔 Notificarme cuando esté disponible';
+                btn.className   = 'btn btn-neon flex-grow-1';
+                btn.setAttribute('onclick', `toggleAlerta(${pid}, false)`);
+            }
+        }
+        if (btn) btn.disabled = false;
+    })
+    .catch(() => { showToast('Error de conexión.', 'error'); if(btn) btn.disabled=false; });
+}
 </script>
 
 <style>

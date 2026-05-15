@@ -210,23 +210,27 @@ if ($action === 'search') {
             $avg      = (float)($p['avg_rating'] ?? 0);
             $pid      = (int)$p['id_producto'];
 
-            // Estrellas
-            $sh = '';
-            for ($i=1;$i<=5;$i++) $sh .= '<i class="bi '.($i<=round($avg)?'bi-star-fill':'bi-star').'" style="color:'.($i<=round($avg)?'#f59e0b':'var(--text-muted)').';font-size:.82rem;"></i>';
+            // Estrellas con texto unicode (no depende de BI font)
+            $sh = '<span style="color:#f59e0b;font-size:.9rem;letter-spacing:1px;">';
+            for ($i=1;$i<=5;$i++) $sh .= $i<=round($avg) ? '★' : '<span style="color:var(--text-muted);">★</span>';
+            $sh .= '</span>';
 
             // Stock badge
             $sb = '';
-            if (!$inStock) $sb = '<div class="stock-overlay"><span>AGOTADO</span></div>';
-            elseif ($lowStock) $sb = '<span class="badge-orange" style="position:absolute;bottom:10px;left:10px;font-size:.7rem;"><i class="bi bi-exclamation-triangle me-1"></i>Últimas '.(int)$p['stock'].' uds.</span>';
+            if (!$inStock) {
+                $sb = '<div class="stock-overlay"><span>AGOTADO</span></div>';
+            } elseif ($lowStock) {
+                $sb = '<span style="position:absolute;bottom:8px;left:8px;z-index:5;background:rgba(245,158,11,.85);color:#080810;padding:3px 9px;border-radius:4px;font-size:.7rem;font-weight:700;">⚠ Últimas '.(int)$p['stock'].' uds.</span>';
+            }
 
-            // Cart btn
+            // Cart btn — emoji en lugar de BI icon para máxima compatibilidad
             $cb = $inStock
-                ? '<button class="btn btn-neon btn-sm btn-add-to-cart" data-product-id="'.$pid.'" style="padding:6px 13px;font-size:.78rem;" onclick="event.stopPropagation()"><i class="bi bi-cart3 me-1"></i>Agregar</button>'
-                : '<button class="btn btn-secondary btn-sm" disabled style="font-size:.78rem;"><i class="bi bi-x-circle me-1"></i>Agotado</button>';
+                ? '<button class="btn btn-neon btn-sm btn-add-to-cart" data-product-id="'.$pid.'" style="padding:6px 13px;font-size:.78rem;">🛒 Agregar</button>'
+                : '<button class="btn btn-secondary btn-sm" disabled style="font-size:.78rem;">✗ Agotado</button>';
 
-            // Favorite icon — usando card-fav-btn (el CSS de global.css lo maneja correctamente)
-            $favCls  = $isFav ? 'card-fav-btn active' : 'card-fav-btn';
-            $favIcCls = $isFav ? 'bi bi-heart-fill' : 'bi bi-heart';
+            // Favorito — emoji, siempre visible
+            $favEmoji = $isFav ? '❤️' : '🤍';
+            $favCls   = $isFav ? 'card-fav-btn active' : 'card-fav-btn';
 
             echo '<div class="col animate-on-scroll visible">
             <div class="product-card" onclick="handleCardClick(event,'.$pid.')">
@@ -237,12 +241,12 @@ if ($action === 'search') {
                     <div class="card-badge-top">
                         <span class="badge-cyan" style="font-size:.7rem;">'.htmlspecialchars($p['icono']??'').' '.htmlspecialchars($p['nombre_categoria']??'').'</span>
                     </div>
-                    <button class="'.$favCls.'" data-product-id="'.$pid.'" onclick="event.stopPropagation();_toggleFav(this)" title="Favorito">
-                        <i class="'.$favIcCls.'"></i>
+                    <button class="'.$favCls.'" data-product-id="'.$pid.'" title="Favorito">
+                        <span class="fav-emoji">'.$favEmoji.'</span>
                     </button>
                     '.$sb.'
                     <div class="qv-overlay" onclick="event.stopPropagation();openQuickView('.$pid.')">
-                        <button class="qv-btn"><i class="bi bi-eye"></i> Vista Rápida</button>
+                        <button class="qv-btn">👁 Vista Rápida</button>
                     </div>
                 </div>
                 <div class="card-body">
@@ -250,8 +254,8 @@ if ($action === 'search') {
                     <h6 style="font-family:\'Oxanium\',sans-serif;color:var(--text-primary);margin-bottom:5px;line-height:1.3;font-size:.92rem;">
                         '.htmlspecialchars($p['nombre']).'
                     </h6>
-                    <div class="stars-wrap mb-2">'.$sh.'
-                        <span style="color:var(--text-muted);font-size:.75rem;margin-left:3px;">('.(int)$p['review_count'].')</span>
+                    <div style="margin-bottom:6px;">'.$sh.'
+                        <span style="color:var(--text-muted);font-size:.75rem;margin-left:4px;">('.(int)$p['review_count'].')</span>
                     </div>
                     <div class="d-flex align-items-center justify-content-between mt-2">
                         <span class="price-tag" style="font-size:1.15rem;">$'.number_format((float)$p['precio'],2).'</span>

@@ -105,6 +105,20 @@ run($conn, "CREATE TABLE IF NOT EXISTS Resena (
     FOREIGN KEY (id_producto) REFERENCES Producto(id_producto) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4", "Tabla Resena");
 
+// ---- Nueva tabla: Alerta_Stock ----
+run($conn, "CREATE TABLE IF NOT EXISTS Alerta_Stock (
+    id_alerta          INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario         INT NOT NULL,
+    id_producto        INT NOT NULL,
+    activa             TINYINT(1) DEFAULT 1,
+    notificada         TINYINT(1) DEFAULT 0,
+    fecha_solicitud    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    fecha_notificacion DATETIME DEFAULT NULL,
+    FOREIGN KEY (id_usuario)  REFERENCES Usuario(id_usuario)  ON DELETE CASCADE,
+    FOREIGN KEY (id_producto) REFERENCES Producto(id_producto) ON DELETE CASCADE,
+    UNIQUE KEY unique_alerta_usuario_producto (id_usuario, id_producto)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4", "Tabla Alerta_Stock");
+
 run($conn, "CREATE TABLE IF NOT EXISTS Cupon (
     id_cupon         INT AUTO_INCREMENT PRIMARY KEY,
     codigo           VARCHAR(50) UNIQUE NOT NULL,

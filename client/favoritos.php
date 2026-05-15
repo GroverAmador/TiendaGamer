@@ -16,8 +16,10 @@ $stmt = mysqli_prepare($conn,
      WHERE f.id_usuario=? AND p.estado=1 GROUP BY p.id_producto ORDER BY f.fecha DESC");
 mysqli_stmt_bind_param($stmt,'i',$uid);
 mysqli_stmt_execute($stmt);
-$favorites=[];
-while($r=mysqli_fetch_assoc(mysqli_stmt_get_result($stmt))) $favorites[]=$r;
+$favResult = mysqli_stmt_get_result($stmt); // guardar resultado ANTES del while
+$favorites  = [];
+while ($r = mysqli_fetch_assoc($favResult)) $favorites[] = $r;
+mysqli_stmt_free_result($stmt);
 mysqli_stmt_close($stmt);
 ?>
 <!DOCTYPE html>

@@ -90,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <label class="form-label"><i class="bi bi-lock me-1"></i>Contraseña</label>
                 <div class="pw-wrap">
                     <input type="password" name="contrasena" id="pw" class="form-control" placeholder="Mínimo 8 caracteres" required>
-                    <button type="button" class="pw-toggle" onclick="togglePw('pw',this)"><i class="bi bi-eye"></i></button>
+                    <button type="button" class="pw-toggle" onclick="togglePw('pw',this)">👁</button>
                 </div>
                 <div class="strength-bar mt-2"><div class="strength-fill" id="sf"></div></div>
                 <span class="strength-label" id="sl"></span>
@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <label class="form-label"><i class="bi bi-lock-fill me-1"></i>Confirmar contraseña</label>
                 <div class="pw-wrap">
                     <input type="password" name="confirmar_contrasena" id="pw2" class="form-control" placeholder="Repite tu contraseña" required>
-                    <button type="button" class="pw-toggle" onclick="togglePw('pw2',this)"><i class="bi bi-eye"></i></button>
+                    <button type="button" class="pw-toggle" onclick="togglePw('pw2',this)">👁</button>
                 </div>
             </div>
 
@@ -153,8 +153,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <script>
 function togglePw(id, btn) {
     const inp = document.getElementById(id);
-    inp.type = inp.type==='password' ? 'text' : 'password';
-    btn.querySelector('.bi').className = inp.type==='password' ? 'bi bi-eye' : 'bi bi-eye-slash';
+    if (!inp) return;
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+    btn.textContent = inp.type === 'password' ? '👁' : '🙈';
 }
 
 // Password strength

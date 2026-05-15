@@ -1,212 +1,192 @@
 // ============================================================
-// NexusGear - AJAX Product Search with Debounce & Skeletons
+// NexusGear — busqueda.js v3
+// Carga inicial + filtros AJAX con debounce
+// doSearch expuesto globalmente para llamadas externas
 // ============================================================
 
 (function () {
     'use strict';
 
-    let debounceTimer = null;
-    const DEBOUNCE_MS = 300;
+    var debounceTimer = null;
+    var DEBOUNCE_MS   = 350;
+    var initialized   = false;
 
-    // ---- Skeleton loader HTML ----
+    // ---- HTML skeleton ----
     function skeletonCard() {
-        return `
-        <div class="col">
-            <div class="skeleton-card">
-                <div class="skeleton-img"></div>
-                <div class="skeleton-text skeleton" style="width:40%;margin-top:16px;"></div>
-                <div class="skeleton-text skeleton" style="width:80%;"></div>
-                <div class="skeleton-text skeleton" style="width:60%;"></div>
-                <div class="skeleton-btn skeleton"></div>
-            </div>
-        </div>`;
+        return '<div class="col"><div class="skeleton-card">'
+            + '<div class="skeleton-img"></div>'
+            + '<div class="skeleton-line skeleton" style="width:40%;margin-top:14px;"></div>'
+            + '<div class="skeleton-line skeleton" style="width:75%;"></div>'
+            + '<div class="skeleton-line skeleton" style="width:55%;"></div>'
+            + '<div class="skeleton-btn skeleton"></div>'
+            + '</div></div>';
     }
 
-    function showSkeletons(count = 6) {
-        const grid = document.getElementById('product-grid');
+    function showSkeletons(n) {
+        var grid = document.getElementById('product-grid');
         if (!grid) return;
-        grid.innerHTML = Array(count).fill(skeletonCard()).join('');
+        var html = '';
+        for (var i = 0; i < n; i++) html += skeletonCard();
+        grid.innerHTML = html;
     }
 
-    // ---- Collect all current filter values ----
-    function getFilterParams() {
-        const params = new URLSearchParams();
+    // ---- Recolectar parámetros de los filtros ----
+    function getParams() {
+        var params = new URLSearchParams();
+        params.set('action', 'search');
 
-        const q = document.getElementById('search-input')?.value.trim();
-        if (q) params.set('q', q);
+        var q = (document.getElementById('search-input') || {}).value || '';
+        if (q.trim()) params.set('q', q.trim());
 
-        // Category checkboxes
-        document.querySelectorAll('input[name="id_categoria[]"]:checked').forEach(cb => {
+        document.querySelectorAll('input[name="id_categoria[]"]:checked').forEach(function(cb) {
             params.append('id_categoria[]', cb.value);
         });
-
-        // Brand checkboxes
-        document.querySelectorAll('input[name="marca[]"]:checked').forEach(cb => {
+        document.querySelectorAll('input[name="marca[]"]:checked').forEach(function(cb) {
             params.append('marca[]', cb.value);
         });
 
-        const priceMin = document.getElementById('precio-min')?.value;
-        const priceMax = document.getElementById('precio-max')?.value;
-        if (priceMin) params.set('precio_min', priceMin);
-        if (priceMax) params.set('precio_max', priceMax);
+        var pMin = (document.getElementById('precio-min') || {}).value;
+        var pMax = (document.getElementById('precio-max') || {}).value;
+        if (pMin) params.set('precio_min', pMin);
+        if (pMax) params.set('precio_max', pMax);
 
-        const rating = document.getElementById('rating-filter')?.value;
+        var rating = (document.getElementById('rating-filter') || {}).value;
         if (rating) params.set('rating', rating);
 
-        const sort = document.getElementById('sort-select')?.value;
-        if (sort) params.set('sort', sort);
+        var sort = (document.getElementById('sort-select') || {}).value || 'default';
+        params.set('sort', sort);
 
-        const page = document.getElementById('current-page')?.value || 1;
+        var page = (document.getElementById('current-page') || {}).value || 1;
         params.set('page', page);
 
-        params.set('action', 'search');
         return params;
     }
 
-    // ---- Execute search request ----
+    // ---- Ejecutar búsqueda ----
     function doSearch() {
-        const params = getFilterParams();
+        var grid       = document.getElementById('product-grid');
+        var countEl    = document.getElementById('results-count');
+        var paginEl    = document.getElementById('pagination-container');
+
+        if (!grid) return; // no estamos en la página de productos
+
         showSkeletons(6);
 
-        fetch('/nexusgear/controllers/producto_controller.php?' + params.toString())
-            .then(res => res.json())
-            .then(data => {
-                const grid = document.getElementById('product-grid');
-                const countEl = document.getElementById('results-count');
+        var params = getParams();
 
+        fetch('/nexusgear/controllers/producto_controller.php?' + params.toString())
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
+            .then(function(data) {
                 if (grid) {
-                    grid.innerHTML = data.html || '<div class="col-12 text-center py-5"><p style="color:var(--text-muted);">No se encontraron productos.</p></div>';
-                    // Re-init scroll animations on newly inserted cards
-                    grid.querySelectorAll('.animate-on-scroll').forEach(el => {
-                        setTimeout(() => el.classList.add('visible'), 50);
+                    grid.innerHTML = data.html || '<div class="col-12 text-center py-5">'
+                        + '<p style="color:var(--text-muted);">No se encontraron productos.</p>'
+                        + '</div>';
+                    // Activar animaciones en las cards nuevas
+                    grid.querySelectorAll('.animate-on-scroll').forEach(function(el) {
+                        setTimeout(function() { el.classList.add('visible'); }, 50);
                     });
                 }
-
-                if (countEl) {
-                    countEl.textContent = data.total || 0;
-                }
-
-                // Update pagination
-                const paginationEl = document.getElementById('pagination-container');
-                if (paginationEl) paginationEl.innerHTML = data.pagination || '';
-
-                // Re-bind add-to-cart and favorite buttons for new cards
-                bindNewCardButtons(grid);
+                if (countEl) countEl.textContent = data.total || 0;
+                if (paginEl) paginEl.innerHTML   = data.pagination || '';
             })
-            .catch(() => {
-                const grid = document.getElementById('product-grid');
+            .catch(function(err) {
                 if (grid) {
-                    grid.innerHTML = '<div class="col-12 text-center py-5"><p style="color:var(--neon-pink);">Error al cargar productos. Intenta de nuevo.</p></div>';
+                    grid.innerHTML = '<div class="col-12 text-center py-4">'
+                        + '<p style="color:var(--neon-pink);">Error al cargar productos. Recarga la página.</p>'
+                        + '</div>';
                 }
+                console.error('[busqueda] Error:', err);
             });
     }
 
-    // ---- Re-bind buttons on dynamically loaded cards ----
-    function bindNewCardButtons(container) {
-        if (!container) return;
-
-        container.querySelectorAll('.btn-add-to-cart').forEach(btn => {
-            btn.addEventListener('click', function () {
-                const productId = this.dataset.productId;
-                if (productId) addToCart(productId, 1);
-            });
-        });
-
-        container.querySelectorAll('.btn-fav').forEach(btn => {
-            btn.addEventListener('click', function () {
-                const pid      = this.dataset.productId;
-                const isActive = this.classList.contains('active');
-                const self     = this;
-
-                fetch('/nexusgear/controllers/favorito_controller.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `action=${isActive ? 'remove' : 'add'}&id_producto=${pid}&csrf_token=${window.csrfToken || ''}`
-                })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        self.classList.toggle('active');
-                        showToast(data.message, isActive ? 'info' : 'success');
-                    } else {
-                        showToast(data.message || 'Inicia sesión para usar favoritos.', 'warning');
-                    }
-                });
-            });
-        });
-    }
-
-    // ---- Debounced trigger ----
+    // ---- Trigger con debounce ----
     function triggerSearch() {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(doSearch, DEBOUNCE_MS);
     }
 
+    // ---- Exponer globalmente ----
+    window.doSearch = doSearch;
+
     // ---- Init ----
     document.addEventListener('DOMContentLoaded', function () {
-        const searchInput = document.getElementById('search-input');
-        if (!searchInput) return; // Not on a search page
+        if (initialized) return;
+        initialized = true;
 
-        // Search input keyup
+        var searchInput  = document.getElementById('search-input');
+        var sortSelect   = document.getElementById('sort-select');
+        var ratingFilter = document.getElementById('rating-filter');
+        var clearBtn     = document.getElementById('btn-clear-filters');
+        var pageInput    = document.getElementById('current-page');
+
+        // Solo inicializar si estamos en una página con buscador
+        if (!searchInput) return;
+
+        // Busqueda por texto
         searchInput.addEventListener('keyup', triggerSearch);
+        searchInput.addEventListener('input',  triggerSearch);
 
-        // Filter checkboxes
+        // Filtros de checkbox
         document.querySelectorAll('input[name="id_categoria[]"], input[name="marca[]"]')
-            .forEach(cb => cb.addEventListener('change', triggerSearch));
+            .forEach(function(cb) { cb.addEventListener('change', triggerSearch); });
 
-        // Price inputs
-        ['precio-min', 'precio-max'].forEach(id => {
-            const el = document.getElementById(id);
+        // Precio
+        ['precio-min', 'precio-max'].forEach(function(id) {
+            var el = document.getElementById(id);
             if (el) el.addEventListener('input', triggerSearch);
         });
 
-        // Rating filter
-        const ratingFilter = document.getElementById('rating-filter');
+        // Rating
         if (ratingFilter) ratingFilter.addEventListener('change', triggerSearch);
 
-        // Sort dropdown
-        const sortSelect = document.getElementById('sort-select');
+        // Sort
         if (sortSelect) sortSelect.addEventListener('change', triggerSearch);
 
-        // Clear filters button
-        const clearBtn = document.getElementById('btn-clear-filters');
+        // Limpiar filtros
         if (clearBtn) {
-            clearBtn.addEventListener('click', function () {
+            clearBtn.addEventListener('click', function() {
                 if (searchInput) searchInput.value = '';
                 document.querySelectorAll('input[name="id_categoria[]"], input[name="marca[]"]')
-                    .forEach(cb => cb.checked = false);
-                const minEl = document.getElementById('precio-min');
-                const maxEl = document.getElementById('precio-max');
+                    .forEach(function(cb) { cb.checked = false; });
+                var minEl = document.getElementById('precio-min');
+                var maxEl = document.getElementById('precio-max');
                 if (minEl) minEl.value = '';
                 if (maxEl) maxEl.value = '';
                 if (ratingFilter) ratingFilter.value = '';
                 if (sortSelect) sortSelect.value = 'default';
+                if (pageInput) pageInput.value = 1;
                 doSearch();
             });
         }
 
-        // View toggle (grid / list)
-        document.querySelectorAll('.view-toggle-btn').forEach(btn => {
-            btn.addEventListener('click', function () {
-                document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.remove('active'));
+        // Vista grid/lista
+        document.querySelectorAll('.view-toggle-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.view-toggle-btn').forEach(function(b) { b.classList.remove('active'); });
                 this.classList.add('active');
-                const grid = document.getElementById('product-grid');
-                if (grid) {
-                    if (this.dataset.view === 'list') grid.classList.add('list-view');
-                    else grid.classList.remove('list-view');
+                var grid2 = document.getElementById('product-grid');
+                if (grid2) {
+                    if (this.dataset.view === 'list') grid2.classList.add('list-view');
+                    else grid2.classList.remove('list-view');
                 }
             });
         });
 
-        // Pagination links (event delegation)
-        document.addEventListener('click', function (e) {
-            const pageBtn = e.target.closest('.page-link[data-page]');
-            if (pageBtn) {
-                e.preventDefault();
-                const pageInput = document.getElementById('current-page');
-                if (pageInput) pageInput.value = pageBtn.dataset.page;
-                doSearch();
-            }
+        // Paginación (event delegation)
+        document.addEventListener('click', function(e) {
+            var pageBtn = e.target.closest('.page-link[data-page]');
+            if (!pageBtn) return;
+            e.preventDefault();
+            if (pageInput) pageInput.value = pageBtn.dataset.page;
+            doSearch();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         });
+
+        // Carga inicial — pequeño delay para que Bootstrap termine de renderizar
+        setTimeout(doSearch, 80);
     });
+
 }());

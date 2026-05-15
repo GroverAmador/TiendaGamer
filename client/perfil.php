@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 // ============================================================
 // NexusGear - User Profile Edit
 // ============================================================
@@ -17,7 +17,7 @@ $user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
 mysqli_stmt_close($stmt);
 
 if ($_SERVER['REQUEST_METHOD']==='POST') {
-    if(($_POST['csrf_token']??')!=$_SESSION['csrf_token')){
+    if (($_POST['csrf_token'] ?? '') !== ($_SESSION['csrf_token'] ?? '')) {
         $msg='Token inválido.';$msgType='error';
     } else {
         $action=$_POST['action']??'';
@@ -198,46 +198,39 @@ function fechaEs(string $d):string{
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
                         <input type="hidden" name="action" value="change_password">
                         <div class="mb-3">
-                            <label class="form-label"><i class="bi bi-lock me-1"></i>Contraseña actual</label>
-                            <div class="password-toggle">
+                            <label class="form-label">🔒 Contraseña actual</label>
+                            <div class="pw-wrap">
                                 <input type="password" name="contrasena_actual" class="form-control"
                                        id="contrasena_actual" placeholder="Tu contraseña actual" required>
-                                <button type="button" class="toggle-btn" data-target="contrasena_actual">
-                                    <i class="bi bi-eye"></i>
-                                </button>
+                                <button type="button" class="pw-toggle"
+                                        onclick="togglePw('contrasena_actual',this)">👁</button>
                             </div>
                             <div class="invalid-feedback"></div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label"><i class="bi bi-lock-fill me-1"></i>Nueva contraseña</label>
-                            <div class="password-strength-wrapper">
-                                <div class="password-toggle">
-                                    <input type="password" name="nueva_contrasena" class="form-control"
-                                           id="nueva_contrasena" placeholder="Mínimo 8 caracteres" required>
-                                    <button type="button" class="toggle-btn" data-target="nueva_contrasena">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                </div>
-                                <div class="strength-bar-container mt-2">
-                                    <div class="strength-bar"><div class="strength-bar-fill"></div></div>
-                                    <span class="strength-text"></span>
-                                </div>
+                            <label class="form-label">🔑 Nueva contraseña</label>
+                            <div class="pw-wrap">
+                                <input type="password" name="nueva_contrasena" class="form-control"
+                                       id="nueva_contrasena" placeholder="Mínimo 8 caracteres" required>
+                                <button type="button" class="pw-toggle"
+                                        onclick="togglePw('nueva_contrasena',this)">👁</button>
                             </div>
-                            <div class="invalid-feedback" style="display:block;"></div>
+                            <!-- Barra de fuerza -->
+                            <div class="strength-bar mt-2"><div class="strength-fill" id="sf-new"></div></div>
+                            <span class="strength-label" id="sl-new"></span>
                         </div>
                         <div class="mb-4">
-                            <label class="form-label"><i class="bi bi-lock-fill me-1"></i>Confirmar nueva contraseña</label>
-                            <div class="password-toggle">
+                            <label class="form-label">🔐 Confirmar nueva contraseña</label>
+                            <div class="pw-wrap">
                                 <input type="password" name="confirmar_nueva" class="form-control"
                                        id="confirmar_nueva" placeholder="Repite tu nueva contraseña" required>
-                                <button type="button" class="toggle-btn" data-target="confirmar_nueva">
-                                    <i class="bi bi-eye"></i>
-                                </button>
+                                <button type="button" class="pw-toggle"
+                                        onclick="togglePw('confirmar_nueva',this)">👁</button>
                             </div>
                             <div class="invalid-feedback"></div>
                         </div>
                         <button type="submit" class="btn btn-outline-violet">
-                            <i class="bi bi-arrow-repeat me-2"></i>Cambiar Contraseña
+                            🔄 Cambiar Contraseña
                         </button>
                     </form>
                 </div>
@@ -251,14 +244,25 @@ function fechaEs(string $d):string{
 <script src="/nexusgear/assets/js/main.js"></script>
 <script src="/nexusgear/assets/js/validaciones.js"></script>
 <script>
-document.querySelectorAll('.toggle-btn').forEach(btn=>{
-    btn.addEventListener('click',function(){
-        const inp=document.getElementById(this.dataset.target);
-        if(!inp) return;
-        inp.type=inp.type==='password'?'text':'password';
-        const ic=this.querySelector('.bi');
-        if(ic) ic.className=inp.type==='password'?'bi bi-eye':'bi bi-eye-slash';
-    });
+// Toggle ojo con emoji — no depende de Bootstrap Icons
+function togglePw(inputId, btn) {
+    var inp = document.getElementById(inputId);
+    if (!inp) return;
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+    btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+}
+
+// Barra de fuerza para nueva contraseña
+document.getElementById('nueva_contrasena')?.addEventListener('input', function() {
+    var v=this.value, score=0;
+    if(v.length>=8)score++;if(v.length>=12)score++;
+    if(/[A-Z]/.test(v))score++;if(/[0-9]/.test(v))score++;if(/[^A-Za-z0-9]/.test(v))score++;
+    var lvls=[['0%','',''],['20%','#f43f8e','Muy débil'],['40%','#f59e0b','Débil'],
+              ['60%','#f59e0b','Regular'],['80%','#84cc16','Buena'],['100%','#00d8f0','Excelente']];
+    var l=lvls[Math.min(score,5)];
+    var sf=document.getElementById('sf-new'),sl=document.getElementById('sl-new');
+    if(sf){sf.style.width=l[0];sf.style.background=l[1]||'transparent';}
+    if(sl){sl.textContent=l[2]||'';sl.style.color=l[1]||'';}
 });
 document.getElementById('avatar-input-form')?.addEventListener('change',function(){
     const file=this.files[0];

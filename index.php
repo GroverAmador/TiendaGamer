@@ -199,67 +199,65 @@ function fechaEspanol(string $date): string {
                 $lowStock = (int)$product['stock'] <= 5 && $inStock;
                 $avgRating = (float)($product['avg_rating'] ?? 0);
                 ?>
+                <?php
+                $pid       = $product['id_producto'];
+                $favEmoji  = $isFav ? '❤️' : '🤍';
+                $favCls    = $isFav ? 'card-fav-btn active' : 'card-fav-btn';
+                $starsHtml = '';
+                for ($si=1;$si<=5;$si++) {
+                    $starsHtml .= '<span style="color:'.($si<=round($avgRating)?'#f59e0b':'var(--text-muted)').';">★</span>';
+                }
+                ?>
                 <div class="col animate-on-scroll">
-                    <div class="product-card" onclick="handleCardClick(event,<?= $product['id_producto'] ?>)">
-                        <!-- Image -->
-                        <div class="position-relative overflow-hidden">
-                            <img src="<?= htmlspecialchars($product['imagen'] ?? 'https://placehold.co/400x300/13131f/00f5ff?text=NexusGear') ?>"
+                    <div class="product-card" onclick="handleCardClick(event,<?= $pid ?>)">
+                        <!-- Imagen -->
+                        <div class="card-img-wrap">
+                            <img src="<?= htmlspecialchars($product['imagen'] ?? '') ?>"
                                  alt="<?= htmlspecialchars($product['nombre']) ?>"
-                                 class="card-img-top" style="height:200px;object-fit:cover;">
-                            <span class="badge-cyan" style="position:absolute;top:12px;left:12px;font-size:0.72rem;">
-                                <?= htmlspecialchars($product['icono'] ?? '') ?>
-                                <?= htmlspecialchars($product['nombre_categoria'] ?? '') ?>
-                            </span>
-                            <button class="btn-fav <?= $isFav ? 'active' : '' ?>"
-                                    data-product-id="<?= $product['id_producto'] ?>"
-                                    style="position:absolute;top:12px;right:12px;"
-                                    onclick="event.stopPropagation()">
-                                <i class="bi <?= $isFav ? 'bi-heart-fill' : 'bi-heart' ?>"></i>
+                                 loading="lazy">
+                            <!-- Badge categoría -->
+                            <div class="card-badge-top">
+                                <span class="badge-cyan" style="font-size:.7rem;">
+                                    <?= htmlspecialchars($product['icono'] ?? '') ?>
+                                    <?= htmlspecialchars($product['nombre_categoria'] ?? '') ?>
+                                </span>
+                            </div>
+                            <!-- Favorito con emoji -->
+                            <button class="<?= $favCls ?>" data-product-id="<?= $pid ?>" title="Favorito">
+                                <span class="fav-emoji"><?= $favEmoji ?></span>
                             </button>
                             <?php if (!$inStock): ?>
                                 <div class="stock-overlay"><span>AGOTADO</span></div>
+                            <?php elseif ($lowStock): ?>
+                                <span style="position:absolute;bottom:8px;left:8px;z-index:5;background:rgba(245,158,11,.85);color:#080810;padding:3px 9px;border-radius:4px;font-size:.7rem;font-weight:700;">
+                                    ⚠ Últimas <?= $product['stock'] ?> uds.
+                                </span>
                             <?php endif; ?>
                             <!-- Quick-view overlay -->
-                            <div class="quickview-overlay" onclick="event.stopPropagation();openQuickView(<?= $product['id_producto'] ?>)">
-                                <button class="quickview-btn">
-                                    <i class="bi bi-eye"></i> Vista Rápida
-                                </button>
+                            <div class="qv-overlay" onclick="event.stopPropagation();openQuickView(<?= $pid ?>)">
+                                <button class="qv-btn">👁 Vista Rápida</button>
                             </div>
                         </div>
-
                         <!-- Card body -->
                         <div class="card-body">
                             <div class="brand-tag mb-1"><?= htmlspecialchars($product['marca'] ?? '') ?></div>
-                            <h5 style="font-family:'Oxanium',sans-serif;color:var(--text-primary);font-size:0.95rem;margin-bottom:6px;line-height:1.3;">
+                            <h6 style="font-family:'Oxanium',sans-serif;color:var(--text-primary);font-size:.92rem;margin-bottom:5px;line-height:1.3;">
                                 <?= htmlspecialchars($product['nombre']) ?>
-                            </h5>
-                            <div class="d-flex align-items-center gap-1 mb-2">
-                                <?php for ($si=1;$si<=5;$si++): ?>
-                                <i class="bi <?= $si<=round($avgRating)?'bi-star-fill':'bi-star' ?>"
-                                   style="color:<?= $si<=round($avgRating)?'#ffd700':'var(--text-muted)' ?>;font-size:0.85rem;"></i>
-                                <?php endfor; ?>
-                                <span style="color:var(--text-muted);font-size:0.75rem;margin-left:3px;">
-                                    (<?= (int)$product['review_count'] ?>)
-                                </span>
+                            </h6>
+                            <div style="margin-bottom:6px;font-size:.9rem;letter-spacing:1px;">
+                                <?= $starsHtml ?>
+                                <span style="color:var(--text-muted);font-size:.75rem;margin-left:4px;">(<?= (int)$product['review_count'] ?>)</span>
                             </div>
-                            <?php if ($lowStock): ?>
-                                <div class="badge-orange mb-2" style="font-size:0.72rem;">
-                                    <i class="bi bi-exclamation-triangle me-1"></i>Últimas <?= $product['stock'] ?> unidades
-                                </div>
-                            <?php endif; ?>
                             <div class="d-flex align-items-center justify-content-between mt-2">
-                                <span class="price-tag" style="font-size:1.2rem;">$<?= number_format($product['precio'], 2) ?></span>
+                                <span class="price-tag" style="font-size:1.15rem;">$<?= number_format($product['precio'], 2) ?></span>
                                 <?php if ($inStock): ?>
                                     <button class="btn btn-neon btn-sm btn-add-to-cart"
-                                            data-product-id="<?= $product['id_producto'] ?>"
-                                            onclick="event.stopPropagation()"
-                                            style="font-size:0.8rem;padding:7px 14px;">
-                                        <i class="bi bi-cart3 me-1"></i>Agregar
+                                            data-product-id="<?= $pid ?>"
+                                            style="font-size:.78rem;padding:6px 13px;">
+                                        🛒 Agregar
                                     </button>
                                 <?php else: ?>
-                                    <button class="btn btn-secondary btn-sm" disabled style="font-size:0.8rem;">
-                                        <i class="bi bi-x-circle me-1"></i>Agotado
-                                    </button>
+                                    <button class="btn btn-secondary btn-sm" disabled style="font-size:.78rem;">✗ Agotado</button>
                                 <?php endif; ?>
                             </div>
                         </div>
