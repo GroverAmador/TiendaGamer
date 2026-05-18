@@ -34,8 +34,18 @@ $revStmt = mysqli_prepare($conn,
 mysqli_stmt_bind_param($revStmt,'i',$id);
 mysqli_stmt_execute($revStmt);
 $reviews = [];
-while ($r = mysqli_fetch_assoc(mysqli_stmt_get_result($revStmt))) $reviews[] = $r;
+$revResult = mysqli_stmt_get_result($revStmt);
+while ($r = mysqli_fetch_assoc($revResult)) $reviews[] = $r;
 mysqli_stmt_close($revStmt);
+
+// Extra images gallery
+$extraImgs = [];
+$imgStmt = mysqli_prepare($conn, "SELECT url FROM Producto_Imagen WHERE id_producto=? ORDER BY orden ASC");
+mysqli_stmt_bind_param($imgStmt, 'i', $id);
+mysqli_stmt_execute($imgStmt);
+$imgRes = mysqli_stmt_get_result($imgStmt);
+while ($img = mysqli_fetch_assoc($imgRes)) $extraImgs[] = $img['url'];
+mysqli_stmt_close($imgStmt);
 
 $uid = (int)$_SESSION['id_usuario'];
 
@@ -122,8 +132,23 @@ $reviewAvgText = $totalReviews > 0 ? number_format($avg, 1) : 'N/A';
             <div class="product-detail-img-container">
                 <img src="<?= htmlspecialchars($product['imagen']??'') ?>"
                      alt="<?= htmlspecialchars($product['nombre']) ?>"
-                     class="product-detail-img">
+                     class="product-detail-img"
+                     id="main-product-img">
             </div>
+            <?php if (!empty($extraImgs)): ?>
+            <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+                <div class="img-thumb active"
+                     onclick="switchImg('<?= htmlspecialchars($product['imagen']??'') ?>',this)">
+                    <img src="<?= htmlspecialchars($product['imagen']??'') ?>" alt="Principal">
+                </div>
+                <?php foreach ($extraImgs as $eImg): ?>
+                <div class="img-thumb"
+                     onclick="switchImg('<?= htmlspecialchars($eImg) ?>',this)">
+                    <img src="<?= htmlspecialchars($eImg) ?>" alt="">
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
         </div>
 
         <!-- Product Info -->
@@ -557,6 +582,14 @@ document.getElementById('form-resena')?.addEventListener('submit', function(e) {
         });
 });
 
+// Image gallery switcher
+function switchImg(url, thumb) {
+    const main = document.getElementById('main-product-img');
+    if (main) { main.style.opacity='.4'; main.src=url; main.onload=()=>main.style.opacity='1'; }
+    document.querySelectorAll('.img-thumb').forEach(t=>t.classList.remove('active'));
+    if (thumb) thumb.classList.add('active');
+}
+
 // Auto-open reviews tab if URL has #opiniones
 if (window.location.hash === '#opiniones') {
     const tab = document.getElementById('reviews-tab-btn');
@@ -599,6 +632,14 @@ function toggleAlerta(pid, estaActiva) {
 
 <style>
 .own-review { border-color: var(--border-glow) !important; }
+.img-thumb {
+    width:62px;height:62px;border-radius:6px;
+    border:2px solid var(--border-subtle);
+    cursor:pointer;overflow:hidden;transition:border-color .2s;
+    flex-shrink:0;
+}
+.img-thumb.active { border-color:var(--neon-cyan); box-shadow:0 0 8px rgba(0,216,240,.4); }
+.img-thumb img { width:100%;height:100%;object-fit:cover;display:block; }
 </style>
 </body>
 </html>

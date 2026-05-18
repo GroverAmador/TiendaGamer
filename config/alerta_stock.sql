@@ -43,3 +43,12 @@ CREATE INDEX IF NOT EXISTS idx_alerta_usuario  ON Alerta_Stock (id_usuario, acti
 -- GROUP BY a.id_producto
 -- ORDER BY usuarios_esperando DESC;
 -- ============================================================
+CREATE TABLE IF NOT EXISTS Producto_Imagen (
+    id_imagen   INT AUTO_INCREMENT PRIMARY KEY,
+    id_producto INT NOT NULL,
+    url         VARCHAR(500) NOT NULL,
+    orden       TINYINT DEFAULT 0,
+    FOREIGN KEY (id_producto) REFERENCES Producto(id_producto) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+ALTER TABLE Usuario ADD COLUMN IF NOT EXISTS bloqueado TINYINT(1) NOT NULL DEFAULT 0;

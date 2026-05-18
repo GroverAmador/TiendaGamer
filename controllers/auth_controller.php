@@ -70,13 +70,16 @@ if ($action === 'login') {
     $contrasena= $_POST['contrasena']     ?? '';
     if (!$correo || !$contrasena) { $error='Completa todos los campos.'; return; }
 
-    $st = mysqli_prepare($conn,"SELECT id_usuario,nombre,correo,contrasena,rol,metodo_2fa,totp_secret,foto_perfil FROM Usuario WHERE correo=?");
+    $st = mysqli_prepare($conn,"SELECT id_usuario,nombre,correo,contrasena,rol,metodo_2fa,totp_secret,foto_perfil,bloqueado FROM Usuario WHERE correo=?");
     mysqli_stmt_bind_param($st,'s',$correo); mysqli_stmt_execute($st);
     $user = mysqli_fetch_assoc(mysqli_stmt_get_result($st));
     mysqli_stmt_close($st);
 
     if (!$user || !password_verify($contrasena,$user['contrasena'])) {
         $error='Correo o contraseña incorrectos.'; return;
+    }
+    if (!empty($user['bloqueado'])) {
+        $error='Tu cuenta ha sido bloqueada. Contacta al administrador.'; return;
     }
 
     // Preparar sesión 2FA

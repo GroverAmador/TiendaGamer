@@ -202,10 +202,62 @@ document.getElementById('card-expiry')?.addEventListener('input',function(){
     this.value=v;
     const d=document.getElementById('card-expiry-display');
     if(d) d.textContent=this.value||'MM/YY';
+    // Feedback visual en tiempo real
+    validateExpiryUI(this);
 });
+
+function validateExpiry(value) {
+    if (!value || value.length < 5) return false;
+    const [mm, yy] = value.split('/');
+    const month = parseInt(mm, 10);
+    const year  = 2000 + parseInt(yy, 10);
+    if (isNaN(month) || isNaN(year) || month < 1 || month > 12) return false;
+    const now = new Date();
+    const thisYear  = now.getFullYear();
+    const thisMonth = now.getMonth() + 1;
+    if (year < thisYear) return false;
+    if (year === thisYear && month < thisMonth) return false;
+    return true;
+}
+
+function validateExpiryUI(input) {
+    const ok = validateExpiry(input.value);
+    input.classList.toggle('is-invalid', input.value.length === 5 && !ok);
+    input.classList.toggle('is-valid',   input.value.length === 5 &&  ok);
+    let fb = input.parentElement.querySelector('.invalid-feedback');
+    if (!fb) {
+        fb = document.createElement('div');
+        fb.className = 'invalid-feedback';
+        input.parentElement.appendChild(fb);
+    }
+    fb.textContent = 'Fecha vencida o inválida.';
+}
 
 document.getElementById('form-checkout').addEventListener('submit',function(e){
     e.preventDefault();
+
+    // Validaciones del formulario de pago
+    const cardNum  = document.getElementById('card-number').value.replace(/\s/g,'');
+    const cardName = document.getElementById('card-name').value.trim();
+    const expiry   = document.getElementById('card-expiry').value;
+
+    if (cardNum.length < 13) {
+        showToast('Ingresa un número de tarjeta válido.', 'error');
+        document.getElementById('card-number').focus();
+        return;
+    }
+    if (!cardName) {
+        showToast('Ingresa el nombre del titular.', 'error');
+        document.getElementById('card-name').focus();
+        return;
+    }
+    if (!validateExpiry(expiry)) {
+        showToast('La fecha de vencimiento es inválida o la tarjeta ya expiró.', 'error');
+        document.getElementById('card-expiry').focus();
+        validateExpiryUI(document.getElementById('card-expiry'));
+        return;
+    }
+
     const modal=new bootstrap.Modal(document.getElementById('successModal'));
     modal.show();
     const formData=new FormData(this);

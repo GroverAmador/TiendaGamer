@@ -326,22 +326,19 @@ if ($action === 'create_product' || $action === 'update_product') {
     $estado      = (int)($_POST['estado'] ?? 1);
     $imagen      = trim($_POST['imagen_url'] ?? '');
 
-    // Handle image upload (if file provided)
-    if (!empty($_FILES['imagen']['name'])) {
-        $uploadDir = __DIR__ . '/../assets/img/productos/';
-        $ext       = strtolower(pathinfo($_FILES['imagen']['name'], PATHINFO_EXTENSION));
-        $allowed   = ['jpg','jpeg','png','webp'];
+    // Handle main image file upload
+    $mainImgDir = __DIR__ . '/../assets/img/productos/';
+    if (!is_dir($mainImgDir)) @mkdir($mainImgDir, 0755, true);
+
+    if (!empty($_FILES['imagen']['name']) && $_FILES['imagen']['error'] === UPLOAD_ERR_OK) {
+        $ext     = strtolower(pathinfo($_FILES['imagen']['name'], PATHINFO_EXTENSION));
+        $allowed = ['jpg','jpeg','png','webp'];
         if (in_array($ext, $allowed)) {
-            $filename  = 'prod_' . time() . '_' . rand(100,999) . '.' . $ext;
-            $targetPath = $uploadDir . $filename;
-            if (move_uploaded_file($_FILES['imagen']['tmp_name'], $targetPath)) {
+            $filename = 'prod_' . time() . '_' . rand(100,999) . '.' . $ext;
+            if (move_uploaded_file($_FILES['imagen']['tmp_name'], $mainImgDir . $filename)) {
                 $imagen = '/nexusgear/assets/img/productos/' . $filename;
             }
         }
-    }
-
-    if (empty($imagen)) {
-        $imagen = 'https://placehold.co/400x300/13131f/00f5ff?text=' . urlencode($nombre);
     }
 
     if (empty($nombre) || $id_cat === 0 || $precio <= 0) {
@@ -349,23 +346,95 @@ if ($action === 'create_product' || $action === 'update_product') {
         exit;
     }
 
+    // Si es UPDATE y no se proporcionó imagen nueva, preservar la imagen actual de la BD
+    if ($action === 'update_product' && empty($imagen)) {
+        $pid_check = (int)($_POST['id_producto'] ?? 0);
+        $stImg = mysqli_prepare($conn, "SELECT imagen FROM Producto WHERE id_producto=?");
+        mysqli_stmt_bind_param($stImg, 'i', $pid_check);
+        mysqli_stmt_execute($stImg);
+        $rowImg = mysqli_fetch_assoc(mysqli_stmt_get_result($stImg));
+        mysqli_stmt_close($stImg);
+        $imagen = $rowImg['imagen'] ?? '';
+    }
+
+    // Si aún está vacía (nuevo producto sin imagen), usar placeholder
+    if (empty($imagen)) {
+        $imagen = 'https://placehold.co/400x300/13131f/00f5ff?text=' . urlencode($nombre);
+    }
+
+    $uploadDir = __DIR__ . '/../assets/img/productos/';
+
+    // Helper: persist Producto_Imagen records for this product
+    function saveExtraImages(mysqli $conn, int $pid, string $uploadDir): void {
+        $allowed = ['jpg','jpeg','png','webp'];
+        // — uploaded files —
+        if (!empty($_FILES['new_images']['name'][0])) {
+            $st = mysqli_prepare($conn, "INSERT INTO Producto_Imagen (id_producto,url,orden) VALUES (?,?,?)");
+            $ord = 0;
+            foreach ($_FILES['new_images']['name'] as $k => $name) {
+                if ($_FILES['new_images']['error'][$k] !== UPLOAD_ERR_OK) continue;
+                $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+                if (!in_array($ext, $allowed)) continue;
+                $fn = 'prod_extra_' . $pid . '_' . time() . '_' . $k . '.' . $ext;
+                if (move_uploaded_file($_FILES['new_images']['tmp_name'][$k], $uploadDir . $fn)) {
+                    $url = '/nexusgear/assets/img/productos/' . $fn;
+                    mysqli_stmt_bind_param($st, 'isi', $pid, $url, $ord);
+                    mysqli_stmt_execute($st);
+                    $ord++;
+                }
+            }
+            mysqli_stmt_close($st);
+        }
+        // — external URLs —
+        if (!empty($_POST['new_image_urls'])) {
+            $st = mysqli_prepare($conn, "INSERT INTO Producto_Imagen (id_producto,url,orden) VALUES (?,?,?)");
+            $ord = 100;
+            foreach ($_POST['new_image_urls'] as $rawUrl) {
+                $rawUrl = trim($rawUrl);
+                if (!filter_var($rawUrl, FILTER_VALIDATE_URL)) continue;
+                mysqli_stmt_bind_param($st, 'isi', $pid, $rawUrl, $ord);
+                mysqli_stmt_execute($st);
+                $ord++;
+            }
+            mysqli_stmt_close($st);
+        }
+    }
+
     if ($action === 'create_product') {
         $stmt = mysqli_prepare($conn,
             "INSERT INTO Producto (id_categoria,nombre,marca,descripcion,precio,stock,imagen,destacado,estado)
              VALUES (?,?,?,?,?,?,?,?,?)");
-        mysqli_stmt_bind_param($stmt, 'isssdiisi',
+        mysqli_stmt_bind_param($stmt, 'isssdisii',
             $id_cat, $nombre, $marca, $descripcion, $precio, $stock, $imagen, $destacado, $estado);
         $ok = mysqli_stmt_execute($stmt);
+        if ($ok) {
+            saveExtraImages($conn, (int)mysqli_insert_id($conn), $uploadDir);
+        }
         mysqli_stmt_close($stmt);
         echo json_encode(['success' => $ok, 'message' => $ok ? 'Producto creado exitosamente.' : 'Error al crear.']);
     } else {
         $id = (int)($_POST['id_producto'] ?? 0);
+
+        // Delete images marked for removal
+        if (!empty($_POST['delete_images'])) {
+            $stDel = mysqli_prepare($conn, "DELETE FROM Producto_Imagen WHERE id_imagen=? AND id_producto=?");
+            foreach ($_POST['delete_images'] as $imgId) {
+                $imgId = (int)$imgId;
+                mysqli_stmt_bind_param($stDel, 'ii', $imgId, $id);
+                mysqli_stmt_execute($stDel);
+            }
+            mysqli_stmt_close($stDel);
+        }
+
         $stmt = mysqli_prepare($conn,
             "UPDATE Producto SET id_categoria=?,nombre=?,marca=?,descripcion=?,precio=?,
              stock=?,imagen=?,destacado=?,estado=? WHERE id_producto=?");
-        mysqli_stmt_bind_param($stmt, 'isssdiisii',
+        mysqli_stmt_bind_param($stmt, 'isssdisiii',
             $id_cat, $nombre, $marca, $descripcion, $precio, $stock, $imagen, $destacado, $estado, $id);
         $ok = mysqli_stmt_execute($stmt);
+        if ($ok) {
+            saveExtraImages($conn, $id, $uploadDir);
+        }
         mysqli_stmt_close($stmt);
         echo json_encode(['success' => $ok, 'message' => $ok ? 'Producto actualizado.' : 'Error al actualizar.']);
     }

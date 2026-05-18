@@ -34,6 +34,11 @@ run($conn, "CREATE TABLE IF NOT EXISTS Usuario (
 
 @mysqli_query($conn, "ALTER TABLE Usuario ADD COLUMN IF NOT EXISTS metodo_2fa ENUM('email','totp') DEFAULT 'email' AFTER rol");
 @mysqli_query($conn, "ALTER TABLE Usuario ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(32) DEFAULT NULL AFTER metodo_2fa");
+// Columna bloqueado (segura para tablas existentes)
+$_colChk = mysqli_query($conn, "SHOW COLUMNS FROM Usuario LIKE 'bloqueado'");
+if (!$_colChk || mysqli_num_rows($_colChk) === 0) {
+    run($conn, "ALTER TABLE Usuario ADD COLUMN bloqueado TINYINT(1) NOT NULL DEFAULT 0", "Columna bloqueado en Usuario");
+} else { $log[] = "ℹ Columna bloqueado ya existe"; }
 
 // Categoria con UNIQUE en nombre para evitar duplicados
 run($conn, "CREATE TABLE IF NOT EXISTS Categoria (
@@ -104,6 +109,15 @@ run($conn, "CREATE TABLE IF NOT EXISTS Resena (
     FOREIGN KEY (id_usuario)  REFERENCES Usuario(id_usuario) ON DELETE SET NULL,
     FOREIGN KEY (id_producto) REFERENCES Producto(id_producto) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4", "Tabla Resena");
+
+// ---- Nueva tabla: Producto_Imagen (imágenes adicionales por producto) ----
+run($conn, "CREATE TABLE IF NOT EXISTS Producto_Imagen (
+    id_imagen   INT AUTO_INCREMENT PRIMARY KEY,
+    id_producto INT NOT NULL,
+    url         VARCHAR(500) NOT NULL,
+    orden       TINYINT DEFAULT 0,
+    FOREIGN KEY (id_producto) REFERENCES Producto(id_producto) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4", "Tabla Producto_Imagen");
 
 // ---- Nueva tabla: Alerta_Stock ----
 run($conn, "CREATE TABLE IF NOT EXISTS Alerta_Stock (
